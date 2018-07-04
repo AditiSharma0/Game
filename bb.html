@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html>
+<head>
+<style>
+p{
+	line-height: 5px;
+	font-size: 20px;
+	text-align: center;
+}
+
+.img{
+	position: absolute;
+	z-index:1;
+}
+
+#imgContainer{
+	display:inline-block;
+	margin: 0 auto; 
+	position:relative; 
+}
+
+#myCanvas{
+	position: relative;
+	z-index: 20
+}
+
+#cropCanvas{
+	width: 40%
+	height: auto
+}
+
+#crop_button {
+	width: 100%;
+	float: center;
+}
+
+#buttonrow{
+	width: 100%;
+	float: center;
+}
+
+#new_image_button {
+	width: 100%;
+	float: center;
+}
+
+#skip_image_button {
+	width: 100%;
+	float: center;
+}
+</style>
+
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
+
+<script>
+	var firstImage = true;
+	var curImg = 0;
+	var curImgPath = "";
+	var prevAnnotatedArray = [];
+	var annotatedArray = [];
+	var imageArray = [];
+
+	var drawing = false;
+	var startX = 0;
+	var startY = 0;
+	var endX = 0;
+	var endY = 0;
+
+	// when clicking canvas
+	function startRectangle(event){
+		var canvas = document.getElementById("myCanvas");
+		var rect = canvas.getBoundingClientRect();
+		drawing = true;
+		startX = event.clientX - rect.left;
+		startY = event.clientY - rect.top;
+	}
+	function stopRectangle(event){
+		var canvas = document.getElementById("myCanvas");
+		var rect = canvas.getBoundingClientRect();
+		drawing = false;
+		endX = event.clientX - rect.left;
+		endY = event.clientY - rect.top;
+		cropImage();
+	}
+	function updateRectangle(event){
+		if (drawing){
+			var canvas = document.getElementById("myCanvas");
+			var rect = canvas.getBoundingClientRect();
+			endX = event.clientX - rect.left;
+			endY = event.clientY - rect.top;
+	    		var ctx = canvas.getContext("2d");
+			ctx.clearRect(0,0,canvas.width,canvas.height);
+			ctx.strokeStyle = 'red';
+			ctx.strokeRect(startX, startY, endX-startX, endY-startY);
+		}
+	}
+
+	// find first image
+	function findProgress(){
+		var file = document.getElementById('file').files[0];
+
+		var reader = new FileReader();
+		reader.onload = function(progressEvent){
+			// By lines
+			var imageInfo = this.result.split('\n');
+			for(var line = 0; line < imageInfo.length; line++){
+				if (imageInfo[line].split(',').length > 1){
+					prevAnnotatedArray.push(imageInfo[line]);
+					console.log(imageInfo[line]);
+				}
+				else{
+					curImg = line;
+					return;
+				}
+			}
+		};
+		reader.readAsText(file);
+	}
+	
+	function loadFromCsv(){
+		var file = document.getElementById('file').files[0];
+		var reader = new FileReader();
+		reader.onload = function(progressEvent){
+			// By lines
+			var imageInfo = this.result.split('\n');
+			for(var line = 0; line < imageInfo.length; line++){
+				imageArray.push(imageInfo[line].split(',')[0]);
+			}
+		};
+		reader.readAsText(file);
+
+		findProgress();
+	}
+
+	function skipImage(increment){
+		if (!firstImage){
+			// save annotated image
+			var infoArray = [];
+			infoArray.push(curImgPath.split("_")[1]);
+			infoArray.push(",-1");
+			infoArray.push(",-1");
+			infoArray.push(",-1");
+			infoArray.push(",-1");
+			annotatedArray.push(infoArray);
+		}
+		else{
+			firstImage = false;
+		}
+		// clear old crop
+		var cropCanvas = document.getElementById("cropCanvas");
+		var cropCtx = cropCanvas.getContext("2d");
+		cropCtx.clearRect(0,0,cropCanvas.width,cropCanvas.height);
+
+	    	var canvas = document.getElementById("myCanvas");
+	    	var ctx = canvas.getContext("2d");
+		var img = new Image();
+		img.onload = function() {
+			document.getElementById("img").width = img.width * 0.2;
+			document.getElementById("img").height = img.height * 0.2;
+			canvas.width = img.width * 0.2;
+			canvas.height = img.height * 0.2;
+
+			//canvas.width = img.width * 0.2;
+			//canvas.height = img.height * 0.2;
+			//ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+			canvas.addEventListener('mousedown', startRectangle, false);
+			canvas.addEventListener('mousemove', updateRectangle, false);
+			canvas.addEventListener('mouseup', stopRectangle, false);
+	      	};
+
+		console.log("Images/ISIC_" + imageArray[curImg].split(',')[0]);
+		img.src = "Images/ISIC_" + imageArray[curImg].split(',')[0];
+		curImgPath = img.src;
+		document.getElementById("img").src = curImgPath;
+		curImg+=increment;
+	}
+
+	// load the next image from the csv file
+	function loadNewImage(increment){
+		if (!firstImage){
+			// save annotated image
+			var infoArray = [];
+			infoArray.push(curImgPath.split("_")[1]);
+			infoArray.push("," + startX);
+			infoArray.push("," + startY);
+			infoArray.push("," + (endX-startX));
+			infoArray.push("," + (endY-startY));
+			annotatedArray.push(infoArray);
+		}
+		else{
+			firstImage = false;
+		}
+		// clear old crop
+		var cropCanvas = document.getElementById("cropCanvas");
+		var cropCtx = cropCanvas.getContext("2d");
+		cropCtx.clearRect(0,0,cropCanvas.width,cropCanvas.height);
+
+	    	var canvas = document.getElementById("myCanvas");
+	    	var ctx = canvas.getContext("2d");
+		var img = new Image();
+		img.onload = function() {
+			document.getElementById("img").width = img.width * 0.2;
+			document.getElementById("img").height = img.height * 0.2;
+			canvas.width = img.width * 0.2;
+			canvas.height = img.height * 0.2;
+
+			//canvas.width = img.width * 0.2;
+			//canvas.height = img.height * 0.2;
+			//ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+			canvas.addEventListener('mousedown', startRectangle, false);
+			canvas.addEventListener('mousemove', updateRectangle, false);
+			canvas.addEventListener('mouseup', stopRectangle, false);
+	      	};
+		
+		console.log("Images/ISIC_" + imageArray[curImg].split(',')[0]);
+		img.src = "Images/ISIC_" + imageArray[curImg].split(',')[0];
+		curImgPath = img.src;
+		document.getElementById("img").src = curImgPath;
+		curImg+=increment;
+	}
+
+	// crop the image
+	function cropImage(){
+		var canvas = document.getElementById("cropCanvas");
+		var ctx = canvas.getContext("2d");
+		var img = new Image();
+		img.onload = function() {
+			canvas.width = (endX-startX)*2;
+			canvas.height = (endY-startY)*2;
+			var scaledWidth = canvas.width;
+			var scaledHeight = canvas.height;
+
+			//ctx.drawImage(img, 0, 0, endX-startX, endY-startY);
+			ctx.drawImage(img, startX*5, startY*5, 5*(endX-startX),5*(endY-startY), 0, 0, scaledWidth, scaledHeight);
+
+		};
+		img.src = curImgPath;
+	}
+
+	// save csv file
+	function saveCsv(){
+		var csvContent = "data:text/csv;charset=utf-8,";
+		prevAnnotatedArray.forEach(function(infoArray, index){
+			var dataString = infoArray;
+			csvContent += dataString+ "\n";
+		});
+		annotatedArray.forEach(function(infoArray, index){
+			var dataString = infoArray.join(",");
+			csvContent += dataString+ "\n";
+		});
+		// add the rest of the image info
+		for (var i = curImg-1; i < imageArray.length; i++){
+			csvContent += imageArray[i]+ "\n";
+		}		
+		var encodedUri = encodeURI(csvContent);
+		var link = document.createElement("a");
+		link.setAttribute("href", encodedUri);
+		link.setAttribute("download", "bb.csv");
+		document.body.appendChild(link); // Required for FF
+		link.click();
+		document.body.removeChild(link); 
+	}
+</script> 
+
+</head>
+<body>
+
+<p>BOUNDING BOX CROPPING</p>
+<p>Instructions: Press "Choose File" or "Browse" and find the csv file in the image folder. Then press "Next Image."</p>
+<p>Click and drag on the left image to crop. ONLY DRAG FROM TOP LEFT TO BOTTOM RIGHT!!!!! Cropped image is shown on right.</p>
+<p>If a bounding box cannot be determined, press "Skip Image" to skip.</p>
+<p>When done, press the SAVE button to download the new bb.csv file. Replace the old one in the folder.</p>
+<p>MAKE SURE TO REFRESH OR RELOAD THIS PAGE AFTER EACH SAVE!!!!</p>
+<div id="imgContainer">
+	<img id="img" class="img" src=""/>
+	<canvas id="myCanvas">
+	Your browser does not support the HTML5 canvas tag.</canvas>
+</div>
+
+<canvas id="cropCanvas">
+Your browser does not support the HTML5 canvas tag.</canvas>
+
+<div id="buttonrow">
+<input type="file" name="file" id="file" onchange="loadFromCsv()">
+<input id="save_button" type="button" value="SAVE" onclick="saveCsv()">
+</div>
+<button id="new_image_button" onclick="loadNewImage(1)">Next Image</button>
+<button id="skip_image_button" onclick="skipImage(1)">Skip Image</button>
+
+</body>
+</html>
